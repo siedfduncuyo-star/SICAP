@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block title %}Ingresar · SICAP{% endblock %}
+{% block content %}
+<section class="login-wrap"><div class="login-card card"><p class="eyebrow">FACULTAD DE DERECHO · UNCUYO</p><h1>Ingresar a SICAP</h1><p class="secondary">Usá la cuenta que te asignó la administración.</p>
+  {% if form.errors %}<div class="alert alert-error">El usuario o la contraseña no son correctos.</div>{% endif %}
+  <form method="post" class="stack">{% csrf_token %}<input type="hidden" name="next" value="{{ next }}"><label>Usuario<input autofocus name="username" autocomplete="username" required></label><label>Contraseña<input type="password" name="password" autocomplete="current-password" required></label><button class="button button-primary" type="submit">Ingresar</button></form>
+</div></section>
+{% endblock %}

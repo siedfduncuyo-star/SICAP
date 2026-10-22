@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Carga del programa · SICAP{% endblock %}
+{% block content %}
+<div class="wizard-topline"><a class="back-link" href="{% url 'dashboard' %}">← Bandeja de programas</a><span class="status-pill {% if program.status == 'enviado' %}pill-sent{% else %}pill-draft{% endif %}">{{ program.get_status_display }}</span></div>
+<section class="page-heading wizard-heading"><div><p class="eyebrow">ABOGACÍA · AÑO ACADÉMICO {{ program.academic_year }}</p><h1>{% if program.subject %}{{ program.subject.name }}{% else %}Nuevo programa docente{% endif %}</h1><p class="lead">Completá los datos paso a paso. Podés guardar un borrador y continuar después.</p></div></section>
+<nav class="stepper" aria-label="Pasos de carga">
+  {% for number, label in titles.items %}<a class="step-chip {% if step == number %}active{% elif step > number %}complete{% endif %}" href="{% url 'wizard' program.pk %}?paso={{ number }}" data-step-link="{{ number }}"><span class="step-number">{{ number }}</span><span>{{ label }}</span></a>{% endfor %}
+</nav>
+{% if read_only %}<div class="notice notice-info">Este programa ya fue enviado. Podés consultarlo y descargar el PDF.</div>{% endif %}
+<div class="wizard-layout">
+  <div class="wizard-content card" id="wizard" data-program-id="{{ program.pk }}" data-start-step="{{ step }}" data-read-only="{{ read_only|yesno:'true,false' }}">
+    <div class="completion-banner"><span class="completion-dot"></span><span>Los datos curriculares se cargan desde el catálogo vigente. Si encontrás un dato que falta o no coincide, pedí la corrección a administración.</span></div>
+    <section class="wizard-panel" data-screen="1" aria-labelledby="screenTitle1">
+      <div class="section-heading"><div><span class="step-kicker">PASO 1 DE 5</span><h2 id="screenTitle1">Datos de la cátedra</h2></div><span class="section-icon">01</span></div>
+      <div class="field-grid two-col">
+        <label>Año académico<input type="number" min="2020" max="2100" data-key="academic_year" value="{{ program.academic_year }}" required></label>
+        <label>Carrera<select data-key="career" disabled><option selected>Abogacía</option></select><small>En esta etapa SICAP incluye solo Abogacía.</small></label>
+        <label>Plan de estudios<select data-key="plan"><option value="2017">Plan 2017</option></select></label>
+        <label>Asignatura<select id="subjectSelect" data-key="subject_id" required><option value="">Elegí una asignatura</option>{% for item in catalog %}<option value="{{ item.id }}" data-year="{{ item.year|default_if_none:'' }}" data-group="{{ item.group|escape }}" data-hours="{{ item.hours|default_if_none:'' }}" data-shift="{{ item.shift_suggestion|escape }}" data-weekly="{{ item.weekly_hours|default_if_none:'' }}" data-credits="{{ item.credits|default_if_none:'' }}" data-take="{{ item.prerequisites_to_take|escape }}" data-exam="{{ item.prerequisites_to_exam|escape }}" data-verified="{{ item.source_verified|yesno:'true,false' }}">{% if item.year %}{{ item.year }}.º año · {% else %}{{ item.group }} · {% endif %}{{ item.name }}</option>{% endfor %}</select></label>
+        <label>Año de cursado<input data-key="course_year" readonly placeholder="Se completa al elegir la asignatura"></label>
+        <label>Turno<select data-key="shift"><option value="">No corresponde / definir</option><option>Mañana</option><option>Tarde</option><option>Ambos</option></select><small>Si hay más de un turno, confirmá el que corresponda este año.</small></label>
+      </div>
+      <div class="subsection-title"><h3>Datos curriculares del plan</h3><span class="subtle-tag">Precargados</span></div>
+      <div class="field-grid three-col">
+        <label>Formato<input data-key="format" placeholder="Ej.: Taller"></label>
+        <label>Régimen de cursado<input data-key="term" placeholder="Ej.: Semestral · 1.º cuatrimestre"></label>
+        <label>Carácter<select data-key="character"><option value="">Seleccionar</option><option>Obligatorio</option><option>Optativo</option></select></label>
+        <label>Evaluación<select data-key="evaluation_type"><option value="">Seleccionar</option><option>Promocional</option><option>Regular / examen final</option><option>Mixta</option></select></label>
+        <label>Carga horaria total<input data-key="hours" type="number" min="0" step="1" readonly placeholder="Desde catálogo"></label>
+        <label>Carga horaria semanal<input data-key="weekly_hours" type="number" min="0" step="0.25" placeholder="Completar o confirmar"></label>
+        <label>Créditos académicos<input data-key="credits" type="number" min="0" step="0.01" placeholder="Completar si corresponde"></label>
+        <label class="span-two">Correlatividades para cursar<textarea data-key="prerequisites_to_take" rows="2" readonly placeholder="Se completa al elegir la asignatura"></textarea></label>
+        <label class="span-two">Correlatividades para rendir<textarea data-key="prerequisites_to_exam" rows="2" readonly placeholder="Se completa al elegir la asignatura"></textarea></label>
+      </div>
+      <p id="catalogStatus" class="field-note">Elegí la asignatura para completar los datos disponibles en el catálogo.</p>
+      <div class="subsection-title team-title"><div><h3>Equipo de cátedra</h3><p class="secondary">El nombre, el cargo y los títulos se pueden corregir antes de confirmar.</p></div><button class="button button-small button-secondary" type="button" id="addTeacher">＋ Agregar docente</button></div>
+      <div id="teamList" class="repeat-list"></div>
+      <label class="check-row confirm-row"><input type="checkbox" id="teamConfirmed" data-key="team_confirmed"><span>Confirmo que los nombres, cargos y títulos del equipo de cátedra están correctos.</span></label>
+    </section>
+
+    <section class="wizard-panel" data-screen="2" aria-labelledby="screenTitle2" hidden>
+      <div class="section-heading"><div><span class="step-kicker">PASO 2 DE 5</span><h2 id="screenTitle2">Programa</h2><p class="secondary">Los datos de la pantalla anterior no se vuelven a cargar aquí.</p></div><span class="section-icon">02</span></div>
+      <div class="stack">
+        <label>Encuadre teórico / fundamentación<textarea data-key="framing" rows="7" placeholder="Presentá el espacio curricular y su relación con el plan de estudios."></textarea></label>
+        <div class="field-grid two-col"><label>Objetivo general<textarea data-key="objectives_general" rows="4"></textarea></label><label>Objetivos específicos<textarea data-key="objectives_specific" rows="4" placeholder="Podés enumerarlos, uno por línea."></textarea></label></div>
+        <label>Expectativas de logro<textarea data-key="expectations" rows="4"></textarea></label>
+        <label>Metodología de enseñanza y aprendizaje<textarea data-key="methodology" rows="6"></textarea></label>
+        <label>Unidades y contenidos<textarea data-key="units" rows="8" placeholder="Describí las unidades y sus contenidos."></textarea></label>
+        <label>Evaluación<textarea data-key="evaluation_text" rows="6"></textarea></label>
+        <label>Bibliografía<textarea data-key="bibliography" rows="5" placeholder="Bibliografía básica y complementaria."></textarea><small>Este apartado queda editable para incorporar las referencias que solicite la cátedra.</small></label>
+      </div>
+    </section>
+
+    <section class="wizard-panel" data-screen="3" aria-labelledby="screenTitle3" hidden>
+      <div class="section-heading"><div><span class="step-kicker">PASO 3 DE 5</span><h2 id="screenTitle3">Fechas de evaluación</h2><p class="secondary">Agregá las fechas previstas para trabajos prácticos y parciales.</p></div><span class="section-icon">03</span></div>
+      <div id="assessmentList" class="repeat-list"></div><button class="button button-secondary" type="button" id="addAssessment">＋ Agregar fecha</button>
+    </section>
+
+    <section class="wizard-panel" data-screen="4" aria-labelledby="screenTitle4" hidden>
+      <div class="section-heading"><div><span class="step-kicker">PASO 4 DE 5</span><h2 id="screenTitle4">Horarios de consulta</h2><p class="secondary">Revisá y, si hace falta, actualizá tus horarios en el Sistema de Información de Consultas Docentes (SICDo).</p></div><span class="section-icon">04</span></div>
+      <div class="notice notice-info">SICDo es el sistema institucional donde se consultan y gestionan estos horarios. Los cambios que hagas allí se guardan en SICDo.</div>
+      <div class="consultation-embed"><iframe src="https://consultas.derecho.uncu.edu.ar/horarios" title="Sistema de Información de Consultas Docentes de la Facultad de Derecho" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>
+      <div class="consultation-fallback"><span>Si el sistema no se muestra dentro de SICAP, abrilo en una pestaña nueva.</span><a class="button button-secondary" href="https://consultas.derecho.uncu.edu.ar/horarios" target="_blank" rel="noopener noreferrer">Abrir SICDo ↗</a></div>
+      <label class="check-row confirm-row consultation-confirm"><input type="checkbox" id="consultationsConfirmed" data-key="consultations_confirmed"><span>Confirmo que revisé y actualicé, si era necesario, mis horarios de consulta en SICDo para este año académico.</span></label>
+    </section>
+
+    <section class="wizard-panel" data-screen="5" aria-labelledby="screenTitle5" hidden>
+      <div class="section-heading"><div><span class="step-kicker">PASO 5 DE 5</span><h2 id="screenTitle5">Revisión final</h2><p class="secondary">Revisá todos los datos antes de enviar el programa.</p></div><span class="section-icon">05</span></div>
+      <div id="reviewSummary" class="review-summary"></div>
+      {% if not read_only %}<div class="notice notice-info">Al enviar, el programa queda disponible en la bandeja común para consulta y descarga.</div>{% endif %}
+      <div class="final-actions"><a class="button button-secondary" href="{% url 'download_pdf' program.pk %}">↓ Descargar PDF con logo</a>{% if not read_only and program.status != 'enviado' %}<button class="button button-primary" type="button" id="submitProgram">Enviar programa</button>{% endif %}</div>
+    </section>
+
+    <div class="wizard-actions" id="wizardActions">{% if not read_only %}<button class="button button-quiet" id="saveDraft" type="button">Guardar borrador</button>{% endif %}<div class="action-right"><button class="button button-secondary" id="previousStep" type="button">← Anterior</button><button class="button button-primary" id="nextStep" type="button">Guardar y continuar →</button></div></div>
+    {% csrf_token %}
+  </div>
+  <aside class="wizard-aside card"><p class="eyebrow">AYUDA DE CARGA</p><h3>Datos precargados</h3><p class="secondary">La asignatura determina el año de cursado y la carga horaria disponible. Las correlatividades deben estar validadas en el catálogo institucional.</p><div class="aside-rule"></div><h3>Guardado</h3><p class="secondary">Cada paso se guarda en el repositorio central. Podés volver a editar un borrador antes de enviarlo.</p><div class="aside-rule"></div><p class="aside-footnote">Las etiquetas de cargo y títulos se conservan con la forma que confirmes en esta carga.</p></aside>
+</div>
+{{ catalog|json_script:"sicap-catalog" }}{{ payload|json_script:"sicap-payload" }}
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/wizard.js' %}" defer></script>{% endblock %}

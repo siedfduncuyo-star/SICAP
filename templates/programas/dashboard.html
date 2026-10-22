@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}SICAP · Bandeja de programas{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <div><p class="eyebrow">ABOGACÍA · PLAN 2017</p><h1>Programas docentes</h1><p class="lead">Bandeja común de programas académicos.</p></div>
+  <a class="button button-primary" href="{% url 'new_program' %}"><span aria-hidden="true">＋</span> Nuevo programa</a>
+</section>
+<section class="toolbar card" aria-label="Buscar y filtrar programas">
+  <form method="get" class="filters"><label class="searchbox"><span aria-hidden="true">⌕</span><input type="search" name="q" value="{{ query }}" placeholder="Buscar por asignatura"></label>
+    <select name="estado" aria-label="Filtrar por estado"><option value="">Todos los estados</option><option value="borrador" {% if status == 'borrador' %}selected{% endif %}>Borrador</option><option value="enviado" {% if status == 'enviado' %}selected{% endif %}>Enviado</option></select>
+    <button class="button button-secondary" type="submit">Filtrar</button>
+  </form>
+</section>
+<section class="program-list" aria-label="Programas guardados">
+  {% for program in programs %}
+    <article class="program-card card">
+      <div class="status-mark {% if program.status == 'enviado' %}is-sent{% else %}is-draft{% endif %}"></div>
+      <div class="program-main"><div class="program-meta"><span class="tag">{{ program.get_status_display }}</span><span>Año académico {{ program.academic_year }}</span></div>
+        <h2>{{ program.subject.name|default:"Programa sin asignatura" }}</h2>
+        <p class="secondary">{% if program.subject.year %}{{ program.subject.year }}.º año{% else %}{{ program.subject.group|default:"Abogacía" }}{% endif %} · Actualizado {{ program.updated_at|date:"d/m/Y H:i" }} · {{ program.owner.get_full_name|default:program.owner.username }}</p>
+      </div>
+      <div class="card-actions"><a class="button button-quiet" href="{% url 'wizard' program.pk %}?paso=5">Ver carga</a><a class="icon-link" href="{% url 'download_pdf' program.pk %}" title="Descargar PDF" aria-label="Descargar PDF">↓</a></div>
+    </article>
+  {% empty %}
+    <div class="empty-state card"><span class="empty-icon" aria-hidden="true">▤</span><h2>Todavía no hay programas</h2><p>Iniciá una carga. El borrador se guardará en la bandeja común.</p><a class="button button-primary" href="{% url 'new_program' %}">Crear primer programa</a></div>
+  {% endfor %}
+</section>
+{% endblock %}
